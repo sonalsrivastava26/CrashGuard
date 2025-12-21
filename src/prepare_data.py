@@ -1,31 +1,41 @@
 import pandas as pd
 from pathlib import Path
 
+"""
+Prepares raw Bangalore accident alerts data for hotspot and routing analysis.
+- Renames columns
+- Parses timestamps
+- Filters to Bangalore bounding box
+- Saves cleaned data CSV for downstream usage
+"""
+
 DATA_IN = Path("../data/bangalore-cas-alerts.csv")
 OUT_DIR = Path("../outputs")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 DATA_OUT = OUT_DIR / "data_prepared.csv"
 
-df = pd.read_csv(DATA_IN)
+REQUIRED_COLUMNS = [
+    "deviceCode_location_latitude",
+    "deviceCode_location_longitude",
+    "deviceCode_pyld_alarmType",
+    "deviceCode_pyld_speed",
+    "deviceCode_time_recordedTime_$date"
+]
 
-df = df.rename(columns={
-    "deviceCode_location_latitude": "lat",
-    "deviceCode_location_longitude": "lon",
-    "deviceCode_location_wardName": "ward",
-    "deviceCode_pyld_alarmType": "alarm_type",
-    "deviceCode_pyld_speed": "speed_kmh",
-    "deviceCode_time_recordedTime_$date": "timestamp_utc",
-})
+def main():
+    try:
+        df = pd.read_csv(DATA_IN)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Input data file '{DATA_IN}' not found.")
 
-df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], errors="coerce")
-df["year"] = df["timestamp_utc"].dt.year
-df["month"] = df["timestamp_utc"].dt.month
-df["hour"] = df["timestamp_utc"].dt.hour
-df["dow"] = df["timestamp_utc"].dt.dayofweek
+    missing_cols = set(REQUIRED_COLUMNS) - set(df.columns)
+    if missing_cols:
+        raise ValueError(f"Missing required columns in input data: {missing_cols}")
 
-# Keep roughly-Bengaluru bounds
-df = df[(df["lat"].between(12.7, 13.2)) & (df["lon"].between(77.3, 77.9))].copy()
-
-cols = ["lat","lon","ward","alarm_type","speed_kmh","timestamp_utc","year","month","hour","dow"]
-df[cols].to_csv(DATA_OUT, index=False)
-print(f"[OK] Wrote {DATA_OUT} with {len(df):,} rows")
+    df = df.rename(columns={
+        "deviceCode_location_latitude": "lat",
+        "deviceCode_location_longitude": "lon",
+        "deviceCode_location_wardName": "ward",
+        "deviceCode_pyld_alarmType": "alarm_type",
+        "deviceCode_pyld_speed": "speed_kmh",
+        "deviceCode_time_recordedTime
